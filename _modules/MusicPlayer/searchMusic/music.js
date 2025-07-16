@@ -4,8 +4,6 @@ import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 
 
-import axios from "axios";
-
 const cache = {};
 
 export default async function searchMusic(string) {
