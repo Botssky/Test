@@ -66,22 +66,22 @@ export default {
         ),
 
     async execute({ interaction }) {
+        // Defer the reply to prevent timeout errors
+        await interaction.deferReply({ ephemeral: false });
+
         try {
             switch (interaction.options.getSubcommand()) {
                 case "play": {
-                    const query = interaction.options.getString("query"); // Use 'query'
+                    const query = interaction.options.getString("query");
                     const voiceChannel = interaction.options.getChannel("channel");
 
-                    // Always use searchMusic to handle the input, whether it's a URL or a search term.
-                    // searchMusic will internally determine if it's a URL and extract the ID,
-                    // or perform a search.
                     const musicID = await searchMusic(query);
                     await player.play(interaction, `https://www.youtube.com/watch?v=${musicID}`, voiceChannel.id);
                     break;
                 }
 
                 case "skip":
-                    await player.skip(interaction); // Changed to skip, which calls playNextMusic internally
+                    await player.skip(interaction);
                     break;
 
                 case "pause":
@@ -96,25 +96,24 @@ export default {
                     await player.nowQueue(interaction);
                     break;
 
-                case "leave": // New subcommand handler
+                case "leave":
                     await player.leave(interaction);
                     break;
 
-                case "deleteplaylist": // New subcommand handler
+                case "deleteplaylist":
                     const playlistIdToDelete = interaction.options.getString("playlist_id");
                     await player.deletePlayList(interaction, playlistIdToDelete);
                     break;
 
                 default:
-                    await interaction.reply({ content: "Invalid subcommand.", ephemeral: true });
+                    await interaction.editReply({ content: "Invalid subcommand.", ephemeral: true });
             }
         } catch (error) {
             console.error("Error in /music command:", error);
             if (!interaction.replied && !interaction.deferred) {
                 await interaction.reply({ content: "An error occurred: " + error.message, ephemeral: true });
             } else {
-                // If already replied/deferred, follow up or edit the original reply
-                await interaction.followUp({ content: "An error occurred: " + error.message, ephemeral: true });
+                await interaction.editReply({ content: "An error occurred: " + error.message, ephemeral: true });
             }
         }
     }
