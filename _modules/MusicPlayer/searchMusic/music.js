@@ -2,6 +2,24 @@ import axios from "axios";
 
 const cache = {};
 
+function extractYouTubeId(query) {
+    try {
+        const url = new URL(query);
+
+        if (url.hostname === "youtu.be") {
+            return url.pathname.slice(1);
+        }
+
+        if (url.hostname.includes("youtube.com")) {
+            return url.searchParams.get("v");
+        }
+
+        return null;
+    } catch {
+        return null;
+    }
+}
+
 export default async function searchMusic(query) {
     try {
         if (cache[query]) {
@@ -9,16 +27,9 @@ export default async function searchMusic(query) {
             return cache[query].id;
         }
 
-        let videoId = null;
-
-        // Jos query on YouTube-linkki, yritä purkaa ID
-        const match = query.match(/(?:v=|\/)([0-9A-Za-z_-]{11})/);
-        if (match) {
-            videoId = match[1];
-        }
+        let videoId = extractYouTubeId(query);
 
         if (videoId) {
-            // Tarkista että video on olemassa
             const response = await axios.get(
                 "https://youtube.googleapis.com/youtube/v3/videos",
                 {
@@ -42,7 +53,6 @@ export default async function searchMusic(query) {
 
             return videoId;
         } else {
-            // Muuten tee normaali haku
             const response = await axios.get(
                 "https://youtube.googleapis.com/youtube/v3/search",
                 {
