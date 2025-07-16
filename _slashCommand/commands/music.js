@@ -1,7 +1,8 @@
+// _slashCommand/commands/music.js
 import { SlashCommandBuilder, ChannelType } from "discord.js";
 
 import MusicPlayer from "../../_modules/MusicPlayer/index.js";
-import searchMusic from "../../_modules/MusicPlayer/searchMusic/music.js";
+import searchMusic from "../../_modules/MusicPlayer/searchMusic/music.js"; // Ensure this path is correct
 
 const player = new MusicPlayer();
 
@@ -15,7 +16,7 @@ export default {
                 .setDescription("Play or search for music")
                 .addStringOption(option =>
                     option
-                        .setName("music")
+                        .setName("query") // Renamed 'music' to 'query' for clarity
                         .setDescription("Search for music or provide a YouTube URL")
                         .setRequired(true)
                 )
@@ -46,33 +47,41 @@ export default {
             subcommand
                 .setName("list")
                 .setDescription("List all queued music")
+        )
+        .addSubcommand(subcommand => // Added a subcommand for leaving the channel
+            subcommand
+                .setName("leave")
+                .setDescription("Make the bot leave the voice channel and clear queue")
+        )
+        .addSubcommand(subcommand => // Added a subcommand for deleting playlist by ID
+            subcommand
+                .setName("deleteplaylist")
+                .setDescription("Delete all songs from a specific playlist ID from the queue")
+                .addStringOption(option =>
+                    option
+                        .setName("playlist_id")
+                        .setDescription("The ID of the playlist to remove (e.g., from /music play output)")
+                        .setRequired(true)
+                )
         ),
 
     async execute({ interaction }) {
         try {
             switch (interaction.options.getSubcommand()) {
                 case "play": {
-                    const music = interaction.options.getString("music");
+                    const query = interaction.options.getString("query"); // Use 'query'
                     const voiceChannel = interaction.options.getChannel("channel");
 
-                    // Regex YouTube-linkkien tunnistukseen
-                    // youtu.be/VIDEOID
-                    // youtube.com/watch?v=VIDEOID
-                    const youtubeUrlRegex = /^(https?:\/\/)?(www\.)?youtu\.be\/[a-zA-Z0-9_-]{11}$|^(https?:\/\/)?(www|m|music)\.youtube\.com\/watch\?v=[a-zA-Z0-9_-]{11}/;
-
-                    if (youtubeUrlRegex.test(music)) {
-                        // Jos käyttäjä antoi suoran URL:n
-                        await player.play(interaction, music, voiceChannel.id);
-                    } else {
-                        // Hae video ID hakusanalla
-                        const musicID = await searchMusic(music);
-                        await player.play(interaction, `https://www.youtube.com/watch?v=${musicID}`, voiceChannel.id);
-                    }
+                    // Always use searchMusic to handle the input, whether it's a URL or a search term.
+                    // searchMusic will internally determine if it's a URL and extract the ID,
+                    // or perform a search.
+                    const musicID = await searchMusic(query);
+                    await player.play(interaction, `https://www.youtube.com/watch?v=${musicID}`, voiceChannel.id);
                     break;
                 }
 
                 case "skip":
-                    await player.playNextMusic(interaction);
+                    await player.skip(interaction); // Changed to skip, which calls playNextMusic internally
                     break;
 
                 case "pause":
@@ -87,13 +96,25 @@ export default {
                     await player.nowQueue(interaction);
                     break;
 
+                case "leave": // New subcommand handler
+                    await player.leave(interaction);
+                    break;
+
+                case "deleteplaylist": // New subcommand handler
+                    const playlistIdToDelete = interaction.options.getString("playlist_id");
+                    await player.deletePlayList(interaction, playlistIdToDelete);
+                    break;
+
                 default:
-                    await interaction.reply({ content: "Invalid subcommand", ephemeral: true });
+                    await interaction.reply({ content: "Invalid subcommand.", ephemeral: true });
             }
         } catch (error) {
             console.error("Error in /music command:", error);
             if (!interaction.replied && !interaction.deferred) {
                 await interaction.reply({ content: "An error occurred: " + error.message, ephemeral: true });
+            } else {
+                // If already replied/deferred, follow up or edit the original reply
+                await interaction.followUp({ content: "An error occurred: " + error.message, ephemeral: true });
             }
         }
     }
