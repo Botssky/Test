@@ -1,4 +1,8 @@
+import axios from "axios";
+
 export default async function searchMusic(string) {
+    const cache = {};
+
     try {
         if (cache[string]) {
             cache[string].timestamp = new Date();
