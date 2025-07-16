@@ -7,6 +7,7 @@ const CACHE_TTL_HOURS = 24; // Cache entries expire after 24 hours
  * Extracts the YouTube video ID from a given URL.
  * Supports standard YouTube watch URLs (e.g., https://www.youtube.com/watch?v=VIDEO_ID)
  * and shortened YouTube URLs (e.g., youtu.be).
+ * Uses regular expressions for more robust ID extraction, handling potential extra characters.
  *
  * @param {string} query The URL string to extract the ID from.
  * @returns {string|null} The YouTube video ID if found, otherwise null.
@@ -16,13 +17,18 @@ function extractYouTubeId(query) {
         const url = new URL(query);
 
         // Standard YouTube watch URL: https://www.youtube.com/watch?v=VIDEO_ID
+        // Also handles m.youtube.com, music.youtube.com, etc.
         if (url.hostname.includes("youtube.com")) {
             return url.searchParams.get("v");
         }
 
         // Shortened YouTube URL: https://youtu.be/VIDEO_ID
+        // Use regex to capture only the video ID part and ignore anything after it
         if (url.hostname === "youtu.be") {
-            return url.pathname.slice(1);
+            const match = url.pathname.match(/^\/([a-zA-Z0-9_-]{11})(?:[?#].*)?$/);
+            if (match && match[1]) {
+                return match[1];
+            }
         }
 
         return null;
@@ -78,7 +84,7 @@ export default async function searchMusic(query) {
 
             return videoId;
         } else {
-            // 3. If no video ID, perform a Youtube
+            // 3. If no video ID, perform a YouTube search
             console.log(`[searchMusic] Searching YouTube for query: "${query}"`);
             const response = await axios.get(
                 "https://youtube.googleapis.com/youtube/v3/search",
